@@ -1,0 +1,65 @@
+audit:
+  service:
+    base-url: http://localhost:8088
+    writer-token: ${AUDIT_WRITER_TOKEN}
+
+  outbox:
+    enabled: true
+    interval-ms: 5000
+
+
+
+
+payment:
+  outbox:
+    enabled: true
+    interval-ms: 5000
+
+server:
+  port: 8083
+
+spring:
+  application:
+    name: payment-request-service
+
+  datasource:
+    url: jdbc:oracle:thin:@localhost:1521/FREEPDB1
+    username: SUPPLIER_PAYMENT_APP
+    password: SupplierPayment123
+    driver-class-name: oracle.jdbc.OracleDriver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    consumer:
+      group-id: payment-request-service
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+
+jwt:
+  secret-key: "this-is-a-very-long-secret-key-for-jwt-signing-123456789"
+
+services:
+  supplier-invoice:
+    base-url: http://localhost:8082
+
+logging:
+  level:
+    root: INFO
+    com.ofss: INFO
+    org.springframework.kafka: INFO

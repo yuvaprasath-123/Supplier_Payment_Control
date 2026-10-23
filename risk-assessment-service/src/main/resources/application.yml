@@ -1,0 +1,30 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: risk-assessment-service
+
+  datasource:
+    url: jdbc:oracle:thin:@//localhost:1521/FREEPDB1
+    username: ${RISK_DB_USERNAME}
+    password: ${RISK_DB_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+
+    hikari:
+      maximum-pool-size: 5
+      connection-timeout: 5000
+
+  sql:
+    init:
+      mode: never
+approval-assignment:
+  enabled: true
+  dispatch:
+    fixed-delay-ms: 5000
+integration:
+   security-url: http://localhost:8081
+   approval-workflow-url: http://localhost:8089
+   approval-assignment:
+     client-id: ${APPROVAL_ASSIGNMENT_CLIENT_ID}
+     client-secret: ${APPROVAL_ASSIGNMENT_CLIENT_SECRET}

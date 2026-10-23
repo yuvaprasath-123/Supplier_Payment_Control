@@ -1,0 +1,53 @@
+server:
+  port: 8086
+
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
+internal-access:
+  enabled: ${CONFIG_INTERNAL_ENABLED:false}
+  issuer: ${CONFIG_INTERNAL_ISSUER:}
+  audience: ${CONFIG_INTERNAL_AUDIENCE:}
+  public-keys: ${CONFIG_INTERNAL_PUBLIC_KEYS:}
+  service-permissions: ${CONFIG_INTERNAL_SERVICE_PERMISSIONS:}
+
+spring:
+  application:
+    name: business-configuration-service
+
+  datasource:
+    url: jdbc:oracle:thin:@localhost:1521/FREEPDB1
+    username: ${CONFIG_DB_USERNAME}
+    password: ${CONFIG_DB_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+
+    hikari:
+      maximum-pool-size: 3
+      connection-timeout: 5000
+      read-only: false
+
+  sql:
+    init:
+      mode: never
+
+  jpa:
+    generate-ddl: false
+    hibernate:
+      ddl-auto: none
+
+  flyway:
+    enabled: false
+
+  liquibase:
+    enabled: false
+
+security:
+  jwt:
+    secret: ${CONFIG_JWT_SECRET}
+
+logging:
+  level:
+    root: INFO
+    com.ofss.configuration: INFO

@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: ${PAYMENT_TEST_DB_URL}
+    username: ${PAYMENT_TEST_DB_USERNAME}
+    password: ${PAYMENT_TEST_DB_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  kafka:
+    listener:
+      auto-startup: false
+
+payment:
+  outbox:
+    enabled: false
+
+  audit-outbox:
+    enabled: false

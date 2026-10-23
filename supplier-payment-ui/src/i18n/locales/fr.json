@@ -1,0 +1,54 @@
+{
+  "appName": "Contrôle des paiements fournisseurs",
+
+  "login": {
+    "subtitle": "Connectez-vous pour continuer",
+    "username": "Nom d’utilisateur",
+    "password": "Mot de passe",
+    "button": "Connexion",
+    "loggingIn": "Connexion en cours...",
+    "error": "Échec de la connexion"
+  },
+
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "suppliers": "Fournisseurs",
+    "invoices": "Factures",
+    "payments": "Paiements",
+    "logout": "Déconnexion"
+  },
+
+  "dashboard": {
+    "title": "Tableau de bord",
+    "welcome": "Bienvenue",
+    "subtitle": "Système d’autorisation et de contrôle des paiements fournisseurs",
+
+    "suppliers": {
+      "title": "Fournisseurs",
+      "description": "Créez et gérez les fournisseurs.",
+      "action": "Gérer les fournisseurs"
+    },
+
+    "invoices": {
+      "title": "Factures",
+      "description": "Créez et consultez les factures fournisseurs.",
+      "action": "Gérer les factures"
+    },
+
+    "payments": {
+      "title": "Demandes de paiement",
+      "description": "Créez, examinez et soumettez les demandes de paiement.",
+      "action": "Gérer les paiements"
+    },
+
+    "approver": {
+      "title": "Approbateur financier",
+      "description": "La fonctionnalité d’approbation sera disponible lorsque le service de workflow d’approbation sera intégré."
+    },
+
+    "manager": {
+      "title": "Responsable financier",
+      "description": "Les fonctionnalités d’approbation du responsable et de dérogation seront disponibles lorsque le service de workflow d’approbation sera intégré."
+    }
+  }
+}

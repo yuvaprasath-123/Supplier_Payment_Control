@@ -1,0 +1,978 @@
+/* =========================================================
+   GLOBAL THEME VARIABLES
+   ========================================================= */
+
+:root {
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  --bg-primary: #f4f6f8;
+  --bg-secondary: #ffffff;
+  --bg-navbar: #111827;
+
+  --text-primary: #172033;
+  --text-secondary: #475569;
+  --text-navbar: #ffffff;
+
+  --border-color: #d7dee8;
+
+  --input-bg: #ffffff;
+  --input-text: #172033;
+
+  --button-bg: #1f2937;
+  --button-text: #ffffff;
+  --button-hover: #374151;
+
+  --link-color: #2563eb;
+
+  --error-bg: #fee2e2;
+  --error-text: #b91c1c;
+  --error-border: #fecaca;
+
+  --table-header: #f1f5f9;
+  --table-row-hover: #f8fafc;
+
+  --shadow:
+    0 4px 14px
+    rgba(15, 23, 42, 0.08);
+}
+
+
+/* =========================================================
+   DARK MODE
+   ========================================================= */
+
+html[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #172033;
+  --bg-navbar: #020617;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-navbar: #f8fafc;
+
+  --border-color: #334155;
+
+  --input-bg: #1e293b;
+  --input-text: #f1f5f9;
+
+  --button-bg: #334155;
+  --button-text: #ffffff;
+  --button-hover: #475569;
+
+  --link-color: #60a5fa;
+
+  --error-bg: #451a1a;
+  --error-text: #fecaca;
+  --error-border: #7f1d1d;
+
+  --table-header: #1e293b;
+  --table-row-hover: #1e293b;
+
+  --shadow:
+    0 4px 16px
+    rgba(0, 0, 0, 0.35);
+}
+
+
+/* =========================================================
+   RESET
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+
+  min-width: 320px;
+  min-height: 100vh;
+
+  background:
+    var(--bg-primary);
+
+  color:
+    var(--text-primary);
+
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color:
+    var(--link-color);
+}
+
+
+/* =========================================================
+   APP
+   ========================================================= */
+
+#root {
+  min-height: 100vh;
+}
+
+.app-main {
+  width: 100%;
+}
+
+
+/* =========================================================
+   NAVBAR
+   ========================================================= */
+
+.navbar {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 24px;
+
+  padding:
+    14px
+    32px;
+
+  background:
+    var(--bg-navbar);
+
+  color:
+    var(--text-navbar);
+
+  box-shadow:
+    0 2px 6px
+    rgba(0, 0, 0, 0.18);
+
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+
+  gap: 28px;
+
+  min-width: 0;
+}
+
+.navbar-brand {
+  color:
+    var(--text-navbar);
+
+  font-size: 22px;
+  font-weight: 700;
+
+  text-decoration: none;
+
+  white-space: nowrap;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+
+  gap: 22px;
+
+  flex-wrap: wrap;
+}
+
+.nav-link {
+  color:
+    var(--text-navbar);
+
+  text-decoration: none;
+
+  font-size: 16px;
+  font-weight: 500;
+
+  padding:
+    8px
+    4px;
+}
+
+.nav-link:hover {
+  text-decoration: underline;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+
+  justify-content: flex-end;
+
+  gap: 12px;
+
+  flex-wrap: wrap;
+}
+
+.navbar-user {
+  color:
+    var(--text-navbar);
+
+  font-weight: 600;
+
+  max-width: 180px;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   LANGUAGE SELECTOR
+   ========================================================= */
+
+.language-selector {
+  min-width: 130px;
+
+  min-height: 44px;
+
+  padding:
+    10px
+    12px;
+
+  border:
+    1px solid
+    var(--border-color);
+
+  border-radius: 8px;
+
+  background:
+    var(--input-bg);
+
+  color:
+    var(--input-text);
+
+  cursor: pointer;
+}
+
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+button {
+  border: none;
+
+  border-radius: 8px;
+
+  padding:
+    10px
+    18px;
+
+  background:
+    var(--button-bg);
+
+  color:
+    var(--button-text);
+
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
+}
+
+button:hover:not(:disabled) {
+  background:
+    var(--button-hover);
+}
+
+button:active:not(:disabled) {
+  transform:
+    translateY(1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.theme-toggle {
+  white-space: nowrap;
+}
+
+.logout-button {
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   GENERAL PAGE
+   ========================================================= */
+
+.page {
+  width: min(
+    1400px,
+    calc(100% - 48px)
+  );
+
+  margin:
+    0 auto;
+
+  padding:
+    32px 0 48px;
+}
+
+.page > h1 {
+  margin:
+    0 0 28px;
+
+  font-size:
+    clamp(
+      30px,
+      4vw,
+      44px
+    );
+
+  line-height: 1.15;
+}
+
+
+/* =========================================================
+   CARDS
+   ========================================================= */
+
+.card {
+  width: 100%;
+
+  padding: 28px;
+
+  margin-bottom: 24px;
+
+  background:
+    var(--bg-secondary);
+
+  border:
+    1px solid
+    var(--border-color);
+
+  border-radius: 14px;
+
+  box-shadow:
+    var(--shadow);
+
+  color:
+    var(--text-primary);
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+
+/* =========================================================
+   DASHBOARD GRID
+   ========================================================= */
+
+.dashboard-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+
+  gap: 24px;
+}
+
+.dashboard-grid .card {
+  margin-bottom: 0;
+}
+
+
+/* =========================================================
+   FORMS
+   ========================================================= */
+
+.form-row {
+  display: flex;
+
+  align-items: flex-end;
+
+  gap: 16px;
+
+  flex-wrap: wrap;
+}
+
+input,
+select,
+textarea {
+  min-height: 44px;
+
+  padding:
+    10px
+    12px;
+
+  border:
+    1px solid
+    var(--border-color);
+
+  border-radius: 8px;
+
+  background:
+    var(--input-bg);
+
+  color:
+    var(--input-text);
+
+  outline: none;
+}
+
+input {
+  min-width: 200px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color:
+    #3b82f6;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(59, 130, 246, 0.15);
+}
+
+input::placeholder {
+  color:
+    var(--text-secondary);
+}
+
+
+/* =========================================================
+   TABLES
+   ========================================================= */
+
+.card:has(table) {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+
+  border-collapse: collapse;
+
+  min-width: 650px;
+}
+
+th,
+td {
+  padding:
+    14px
+    16px;
+
+  text-align: left;
+
+  border-bottom:
+    1px solid
+    var(--border-color);
+}
+
+th {
+  background:
+    var(--table-header);
+
+  color:
+    var(--text-primary);
+
+  font-weight: 700;
+}
+
+td {
+  color:
+    var(--text-primary);
+}
+
+tbody tr:hover {
+  background:
+    var(--table-row-hover);
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.status {
+  display: inline-block;
+
+  padding:
+    5px
+    10px;
+
+  border-radius:
+    999px;
+
+  background:
+    var(--table-header);
+
+  color:
+    var(--text-primary);
+
+  font-weight: 600;
+}
+
+
+/* =========================================================
+   ERROR MESSAGE
+   ========================================================= */
+
+.error-message {
+  width: 100%;
+
+  margin-bottom: 20px;
+
+  padding:
+    14px
+    16px;
+
+  background:
+    var(--error-bg);
+
+  color:
+    var(--error-text);
+
+  border:
+    1px solid
+    var(--error-border);
+
+  border-radius:
+    8px;
+}
+
+
+/* =========================================================
+   LOGIN PAGE
+   ========================================================= */
+
+.login-page {
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+
+  background:
+    var(--bg-primary);
+}
+
+.login-card {
+  width: 100%;
+
+  max-width: 520px;
+
+  padding:
+    36px;
+
+  background:
+    var(--bg-secondary);
+
+  border:
+    1px solid
+    var(--border-color);
+
+  border-radius:
+    14px;
+
+  box-shadow:
+    var(--shadow);
+
+  color:
+    var(--text-primary);
+}
+
+.login-card h1 {
+  margin:
+    0 0 24px;
+
+  font-size:
+    clamp(
+      32px,
+      5vw,
+      46px
+    );
+
+  line-height: 1.15;
+}
+
+.login-card p {
+  color:
+    var(--text-secondary);
+}
+
+.login-card form {
+  display: flex;
+  flex-direction: column;
+
+  gap: 12px;
+
+  margin-top: 28px;
+}
+
+.login-card label {
+  font-weight: 600;
+}
+
+.login-card input {
+  width: 100%;
+}
+
+.login-card button[type="submit"] {
+  width: 100%;
+
+  margin-top: 6px;
+}
+
+
+/* =========================================================
+   LOGIN TOOLBAR
+   ========================================================= */
+
+.login-toolbar {
+  width: 100%;
+
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+
+  gap: 12px;
+
+  margin-bottom: 24px;
+}
+
+.login-toolbar .language-selector {
+  min-width: 150px;
+}
+
+.login-toolbar .theme-toggle {
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   RTL SUPPORT
+   ========================================================= */
+
+html[dir="rtl"] .navbar {
+  direction: rtl;
+}
+
+html[dir="rtl"] th,
+html[dir="rtl"] td {
+  text-align: right;
+}
+
+html[dir="rtl"] .login-toolbar {
+  justify-content: flex-start;
+}
+
+
+/* =========================================================
+   TABLET RESPONSIVE
+   ========================================================= */
+
+@media (
+  max-width: 1000px
+) {
+
+  .navbar {
+    align-items: flex-start;
+
+    padding:
+      14px
+      20px;
+  }
+
+  .navbar-left {
+    gap: 16px;
+  }
+
+  .navbar-links {
+    gap: 14px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .page {
+    width:
+      calc(100% - 32px);
+
+    padding-top:
+      24px;
+  }
+}
+
+
+/* =========================================================
+   MOBILE RESPONSIVE
+   ========================================================= */
+
+@media (
+  max-width: 768px
+) {
+
+  .navbar {
+    flex-direction: column;
+
+    align-items: stretch;
+
+    gap: 16px;
+
+    padding:
+      14px
+      16px;
+
+    position: static;
+  }
+
+  .navbar-left {
+    width: 100%;
+
+    flex-direction: column;
+
+    align-items: flex-start;
+
+    gap: 12px;
+  }
+
+  .navbar-brand {
+    white-space: normal;
+
+    font-size: 20px;
+  }
+
+  .navbar-links {
+    width: 100%;
+
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+
+    gap: 8px;
+  }
+
+  .nav-link {
+    padding:
+      9px
+      10px;
+
+    border-radius: 6px;
+
+    background:
+      rgba(
+        255,
+        255,
+        255,
+        0.06
+      );
+  }
+
+  .navbar-right {
+    width: 100%;
+
+    justify-content: flex-start;
+
+    gap: 10px;
+  }
+
+  .navbar-user {
+    width: 100%;
+    max-width: none;
+  }
+
+  .language-selector {
+    flex: 1;
+
+    min-width: 130px;
+  }
+
+  .theme-toggle,
+  .logout-button {
+    flex: 1;
+  }
+
+  .page {
+    width:
+      calc(100% - 24px);
+
+    padding:
+      20px 0 32px;
+  }
+
+  .card {
+    padding:
+      20px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .form-row {
+    flex-direction: column;
+
+    align-items: stretch;
+  }
+
+  .form-row input,
+  .form-row select,
+  .form-row button {
+    width: 100%;
+  }
+
+  input {
+    min-width: 0;
+  }
+
+  table {
+    min-width: 600px;
+  }
+
+  .login-card {
+    max-width: 560px;
+  }
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+   ========================================================= */
+
+@media (
+  max-width: 480px
+) {
+
+  .navbar-links {
+    grid-template-columns:
+      1fr;
+  }
+
+  .navbar-right {
+    flex-direction: column;
+
+    align-items: stretch;
+  }
+
+  .language-selector,
+  .theme-toggle,
+  .logout-button {
+    width: 100%;
+  }
+
+  .login-page {
+    padding:
+      12px;
+  }
+
+  .login-card {
+    padding:
+      24px
+      18px;
+  }
+
+  .login-toolbar {
+    flex-direction: column;
+
+    align-items: stretch;
+  }
+
+  .login-toolbar .language-selector,
+  .login-toolbar .theme-toggle {
+    width: 100%;
+
+    min-width: 0;
+  }
+  
+
+  .card {
+    padding:
+      16px;
+  }
+
+  .page {
+    width:
+      calc(100% - 16px);
+  }
+}
+
+.table-sort-button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.table-sort-button:hover {
+  text-decoration: underline;
+}
+
+
+.submission-details {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+.submission-details p {
+  margin: 12px 0;
+}
+
+.button-link {
+  display: inline-block;
+  padding: 12px 18px;
+  border-radius: 8px;
+  text-decoration: none;
+  background: var(--button-bg, #334155);
+  color: white;
+}
+
+.button-link:hover {
+  opacity: 0.9;
+} 

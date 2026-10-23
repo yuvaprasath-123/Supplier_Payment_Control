@@ -1,0 +1,54 @@
+{
+  "appName": "Supplier Payment Control",
+
+  "login": {
+    "subtitle": "Sign in to continue",
+    "username": "Username",
+    "password": "Password",
+    "button": "Login",
+    "loggingIn": "Logging in...",
+    "error": "Login failed"
+  },
+
+  "nav": {
+    "dashboard": "Dashboard",
+    "suppliers": "Suppliers",
+    "invoices": "Invoices",
+    "payments": "Payments",
+    "logout": "Logout"
+  },
+
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome",
+    "subtitle": "Supplier Payment Authorization & Control System",
+
+    "suppliers": {
+      "title": "Suppliers",
+      "description": "Create and manage suppliers.",
+      "action": "Manage Suppliers"
+    },
+
+    "invoices": {
+      "title": "Invoices",
+      "description": "Create and view supplier invoices.",
+      "action": "Manage Invoices"
+    },
+
+    "payments": {
+      "title": "Payment Requests",
+      "description": "Create, review, and submit payment requests.",
+      "action": "Manage Payments"
+    },
+
+    "approver": {
+      "title": "Finance Approver",
+      "description": "Approval functionality will be available when the approval workflow service is integrated."
+    },
+
+    "manager": {
+      "title": "Finance Manager",
+      "description": "Manager approval and override functionality will be available when the approval workflow service is integrated."
+    }
+  }
+}

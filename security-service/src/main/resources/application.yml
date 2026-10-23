@@ -1,0 +1,28 @@
+server:
+    port: 8081
+
+spring:
+   application:
+      name: security-service
+   datasource:
+      url: jdbc:oracle:thin:@localhost:1521/FREEPDB1
+      username: SUPPLIER_PAYMENT_APP
+      password: SupplierPayment123
+   jpa:
+      hibernate:
+          ddl-auto: update
+      show-sql: true
+jwt:
+   secret-key: "this-is-a-very-long-secret-key-for-jwt-signing-123456789"
+   expiration-minutes: 30
+app:
+   frontend-origin: http://localhost:5173
+integration:
+   approval-assignment:
+     client-id: ${APPROVAL_ASSIGNMENT_CLIENT_ID}
+     client-secret: ${APPROVAL_ASSIGNMENT_CLIENT_SECRET}
+     enabled: true
+   approval-sla:
+     client-id: ${APPROVAL_SLA_CLIENT_ID:}
+     client-secret: ${APPROVAL_SLA_CLIENT_SECRET:}
+     enabled: ${APPROVAL_SLA_ENABLED:false}

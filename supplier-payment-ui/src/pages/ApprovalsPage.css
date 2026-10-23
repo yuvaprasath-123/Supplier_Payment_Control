@@ -1,0 +1,154 @@
+
+.approvals-page {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 40px 48px 64px;
+  box-sizing: border-box;
+}
+
+.approvals-header {
+  margin-bottom: 32px;
+}
+
+.approvals-header h1 {
+  margin: 0 0 14px;
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1.2;
+}
+
+.approvals-header p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.approval-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.approval-filters label {
+  font-weight: 500;
+}
+
+.approval-filters select {
+  min-width: 180px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font: inherit;
+  background: #1e293b;
+  color: #fff;
+  border: 1px solid #475569;
+}
+
+.approvals-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #334155;
+  border-radius: 12px;
+}
+
+.approvals-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.approvals-table th,
+.approvals-table td {
+  padding: 18px 20px;
+  border-bottom: 1px solid #334155;
+  white-space: nowrap;
+}
+
+.approvals-table th {
+  font-weight: 600;
+  background: #1e293b;
+}
+
+.approvals-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+@media (max-width: 768px) {
+  .approvals-page {
+    padding: 24px 16px 40px;
+  }
+
+  .approval-filters {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .approval-filters select {
+    width: 100%;
+  }
+}
+
+
+.approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.approval-actions button {
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid #64748b;
+  background: #334155;
+  color: #ffffff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.approval-actions button:hover:not(:disabled) {
+  background: #475569;
+}
+
+.approval-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.approval-decision-form {
+  margin-top: 28px;
+  padding: 24px;
+  border: 1px solid #475569;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 650px;
+}
+
+.approval-decision-form h2,
+.approval-decision-form p {
+  margin: 0;
+}
+
+.approval-decision-form textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #64748b;
+  border-radius: 8px;
+  background: #1e293b;
+  color: white;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.approval-error {
+  color: #f87171;
+  margin-bottom: 20px;
+}
+
+.approval-success {
+  color: #4ade80;
+  margin-bottom: 20px;
+}
