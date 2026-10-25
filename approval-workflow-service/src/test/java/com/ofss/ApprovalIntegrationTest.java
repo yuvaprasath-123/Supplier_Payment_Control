@@ -6,6 +6,7 @@ import com.ofss.service.*;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.*;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.*;
@@ -37,10 +38,34 @@ class ApprovalIntegrationTest {
             "/approval-tasks/{approvalTaskId}/override-and-approve","/approval-tasks/payment/{paymentId}/history","/approval-tasks/{approvalTaskId}/sla",
             "/approval-tasks/{approvalTaskId}/reassign-to-backup","/approval-tasks/{approvalTaskId}/escalate-to-next-level")) assertTrue(paths.contains("/api/v1"+path),path);
     }
-    ApprovalTask task(ApprovalLevel amount,RiskBand band) {
-        long payment=ids.incrementAndGet();
-        service.route(new Route(payment,1L,new BigDecimal("75000.00"),band,amount,"v7"));
-        return service.create(new Task(payment,2L,60),"Bearer test");
+    ApprovalTask task(
+            ApprovalLevel amount,
+            RiskBand band
+    ) {
+
+        long payment =
+                ids.incrementAndGet();
+
+        service.route(
+                new Route(
+                        payment,
+                        1L,
+                        new BigDecimal("75000.00"),
+                        band,
+                        amount,
+                        "v7"
+                )
+        );
+
+        return service.create(
+                new Task(
+                        payment,
+                        2L,
+                        60,
+                        LocalDate.now().plusDays(2)
+                ),
+                "Bearer test"
+        );
     }
     void expire(ApprovalTask t) { jdbc.update("update APPROVAL_TASKS set DUE_AT=? where ID=?",OffsetDateTime.now().minusMinutes(1),t.id); }
     @Test void routeUsesStricterLevelAndKeepsConfiguration() {

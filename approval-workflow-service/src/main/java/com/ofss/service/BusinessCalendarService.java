@@ -3,9 +3,6 @@ package com.ofss.service;
 import com.ofss.config.BusinessCalendarProperties;
 import com.ofss.repository.BusinessHolidayRepository;
 
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -14,283 +11,599 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
+import org.springframework.stereotype.Service;
+
 @Service
 public class BusinessCalendarService {
 
-    private final BusinessHolidayRepository
-        businessHolidayRepository;
-
-    private final BusinessCalendarProperties
-        properties;
+    private final BusinessHolidayRepository holidayRepository;
+    private final BusinessCalendarProperties properties;
 
     public BusinessCalendarService(
-            BusinessHolidayRepository businessHolidayRepository,
-            BusinessCalendarProperties properties) {
-
-        this.businessHolidayRepository =
-            businessHolidayRepository;
+            BusinessHolidayRepository holidayRepository,
+            BusinessCalendarProperties properties
+    ) {
+        this.holidayRepository =
+                holidayRepository;
 
         this.properties =
-            properties;
+                properties;
     }
 
-    private ZoneId zoneId() {
+
+    public ZoneId zoneId() {
 
         return ZoneId.of(
-            properties.getTimezone()
+                properties.getTimezone()
         );
     }
 
-    @Transactional(readOnly = true)
-    public boolean isHoliday(
-            LocalDate date) {
 
-        return businessHolidayRepository
-            .existsByHolidayDateAndActiveTrue(
-                date
-            );
+    public boolean isHoliday(
+            LocalDate date
+    ) {
+
+        return holidayRepository
+                .existsByHolidayDateAndActiveTrue(
+                        date
+                );
     }
 
-    @Transactional(readOnly = true)
+
     public boolean isWorkingDay(
-            LocalDate date) {
+            LocalDate date
+    ) {
+
+        if (date == null) {
+            return false;
+        }
+
 
         DayOfWeek day =
-            date.getDayOfWeek();
+                date.getDayOfWeek();
+
 
         if (
-            day == DayOfWeek.SATURDAY ||
-            day == DayOfWeek.SUNDAY
+                day == DayOfWeek.SATURDAY
+                ||
+                day == DayOfWeek.SUNDAY
         ) {
+
             return false;
         }
 
+
         return !isHoliday(
-            date
+                date
         );
     }
 
-    @Transactional(readOnly = true)
+
     public boolean isWorkingTime(
-            OffsetDateTime dateTime) {
+            OffsetDateTime dateTime
+    ) {
 
-        ZonedDateTime indiaTime =
-            dateTime.atZoneSameInstant(
-                zoneId()
-            );
-
-        LocalDate date =
-            indiaTime.toLocalDate();
-
-        LocalTime time =
-            indiaTime.toLocalTime();
-
-        if (!isWorkingDay(date)) {
+        if (dateTime == null) {
             return false;
         }
 
-        LocalTime start =
-            properties.getWorkingDayStart();
 
-        LocalTime end =
-            properties.getWorkingDayEnd();
+        ZonedDateTime local =
+                dateTime
+                        .atZoneSameInstant(
+                                zoneId()
+                        );
+
+
+        if (
+                !isWorkingDay(
+                        local.toLocalDate()
+                )
+        ) {
+
+            return false;
+        }
+
+
+        LocalTime time =
+                local.toLocalTime();
+
 
         return
-            !time.isBefore(start) &&
-            time.isBefore(end);
+                !time.isBefore(
+                        properties
+                                .getWorkingDayStart()
+                )
+                &&
+                time.isBefore(
+                        properties
+                                .getWorkingDayEnd()
+                );
     }
 
-    /**
-     * Calculates the approval SLA deadline using:
+
+    /*
+     * =========================================================
+     * NORMAL BUSINESS-CALENDAR SLA
+     * =========================================================
+     *
+     * Example:
+     *
+     * Saturday + 8 working hours
+     * -> Monday 17:00
+     *
+     * Saturday + 24 working hours
+     * -> Wednesday 17:00
+     */
+    public OffsetDateTime calculateDueAt(
+            OffsetDateTime assignedAt,
+            long slaMinutes
+    ) {
+
+        if (assignedAt == null) {
+
+            throw new IllegalArgumentException(
+                    "Assigned time is required"
+            );
+        }
+
+
+        if (slaMinutes <= 0) {
+
+            throw new IllegalArgumentException(
+                    "SLA minutes must be greater than zero"
+            );
+        }
+
+
+        ZonedDateTime current =
+                normalizeToWorkingTime(
+                        assignedAt
+                                .atZoneSameInstant(
+                                        zoneId()
+                                )
+                );
+
+
+        long remainingMinutes =
+                slaMinutes;
+
+
+        while (remainingMinutes > 0) {
+
+            LocalDate currentDate =
+                    current.toLocalDate();
+
+
+            ZonedDateTime workEnd =
+                    currentDate
+                            .atTime(
+                                    properties
+                                            .getWorkingDayEnd()
+                            )
+                            .atZone(
+                                    zoneId()
+                            );
+
+
+            long availableMinutes =
+                    Duration
+                            .between(
+                                    current,
+                                    workEnd
+                            )
+                            .toMinutes();
+
+
+            if (
+                    remainingMinutes
+                            <= availableMinutes
+            ) {
+
+                return current
+                        .plusMinutes(
+                                remainingMinutes
+                        )
+                        .toOffsetDateTime();
+            }
+
+
+            remainingMinutes -=
+                    availableMinutes;
+
+
+            current =
+                    nextWorkingDayStart(
+                            currentDate
+                    );
+        }
+
+
+        return current
+                .toOffsetDateTime();
+    }
+
+
+    /*
+     * =========================================================
+     * INVOICE DEADLINE
+     * =========================================================
+     *
+     * Invoice due date is treated as ending
+     * at the end of the configured working day.
+     *
+     * Example:
+     *
+     * Due date 27/10/2026
+     * -> 27/10/2026 17:00 IST
+     */
+    public OffsetDateTime invoiceDeadline(
+            LocalDate invoiceDueDate
+    ) {
+
+        if (invoiceDueDate == null) {
+
+            return null;
+        }
+
+
+        return invoiceDueDate
+                .atTime(
+                        properties
+                                .getWorkingDayEnd()
+                )
+                .atZone(
+                        zoneId()
+                )
+                .toOffsetDateTime();
+    }
+
+
+    /*
+     * =========================================================
+     * EFFECTIVE SLA DEADLINE
+     * =========================================================
+     *
+     * IMPORTANT:
+     *
+     * This method DOES NOT change the approval level.
+     *
+     * L1 remains L1.
+     * L2 remains L2.
+     * L3 remains L3.
+     *
+     * It only shortens the available SLA when the
+     * invoice due date is earlier than the normal
+     * business-calendar SLA.
+     */
+    public OffsetDateTime calculateEffectiveDueAt(
+            OffsetDateTime assignedAt,
+            long slaMinutes,
+            LocalDate invoiceDueDate
+    ) {
+
+        OffsetDateTime normalSlaDeadline =
+                calculateDueAt(
+                        assignedAt,
+                        slaMinutes
+                );
+
+
+        if (invoiceDueDate == null) {
+
+            return normalSlaDeadline;
+        }
+
+
+        OffsetDateTime invoiceDeadline =
+                invoiceDeadline(
+                        invoiceDueDate
+                );
+
+
+        if (
+                invoiceDeadline.isBefore(
+                        normalSlaDeadline
+                )
+        ) {
+
+            return invoiceDeadline;
+        }
+
+
+        return normalSlaDeadline;
+    }
+
+
+    /*
+     * =========================================================
+     * WORKING MINUTES BETWEEN TWO TIMES
+     * =========================================================
+     *
+     * Counts ONLY:
      *
      * Monday-Friday
      * 09:00-17:00 IST
      *
-     * Weekends and configured holidays
-     * consume zero SLA time.
+     * Weekends and configured holidays = zero.
      */
-    @Transactional(readOnly = true)
-    public OffsetDateTime calculateDueAt(
-            OffsetDateTime assignedAt,
-            long slaMinutes) {
+    public long calculateRemainingWorkingMinutes(
+            OffsetDateTime from,
+            OffsetDateTime deadline
+    ) {
 
-        if (assignedAt == null) {
-            throw new IllegalArgumentException(
-                "assignedAt is required"
-            );
+        if (
+                from == null
+                ||
+                deadline == null
+                ||
+                !from.isBefore(
+                        deadline
+                )
+        ) {
+
+            return 0;
         }
 
-        if (slaMinutes <= 0) {
-            throw new IllegalArgumentException(
-                "slaMinutes must be greater than zero"
-            );
-        }
 
-        ZonedDateTime cursor =
-            assignedAt.atZoneSameInstant(
-                zoneId()
-            );
+        ZoneId zone =
+                zoneId();
 
-        cursor =
-            normalizeToWorkingTime(
-                cursor
-            );
 
-        long remainingMinutes =
-            slaMinutes;
-
-        while (remainingMinutes > 0) {
-
-            cursor =
-                normalizeToWorkingTime(
-                    cursor
+        ZonedDateTime current =
+                from.atZoneSameInstant(
+                        zone
                 );
 
-            LocalDate currentDate =
-                cursor.toLocalDate();
 
-            ZonedDateTime endOfWorkingDay =
-                ZonedDateTime.of(
-                    currentDate,
-                    properties.getWorkingDayEnd(),
-                    zoneId()
+        ZonedDateTime end =
+                deadline.atZoneSameInstant(
+                        zone
                 );
 
-            long availableMinutesToday =
-                Duration.between(
-                    cursor,
-                    endOfWorkingDay
-                ).toMinutes();
+
+        long totalMinutes =
+                0;
+
+
+        while (
+                current.isBefore(
+                        end
+                )
+        ) {
+
+            LocalDate date =
+                    current.toLocalDate();
+
 
             /*
-             * Deadline falls within the current
-             * working day.
+             * Weekend / holiday:
+             * consume zero SLA minutes.
              */
             if (
-                remainingMinutes <=
-                availableMinutesToday
+                    !isWorkingDay(
+                            date
+                    )
             ) {
 
-                cursor =
-                    cursor.plusMinutes(
-                        remainingMinutes
-                    );
+                current =
+                        nextWorkingDayStart(
+                                date
+                        );
 
-                remainingMinutes = 0;
+                continue;
+            }
+
+
+            ZonedDateTime workStart =
+                    date
+                            .atTime(
+                                    properties
+                                            .getWorkingDayStart()
+                            )
+                            .atZone(
+                                    zone
+                            );
+
+
+            ZonedDateTime workEnd =
+                    date
+                            .atTime(
+                                    properties
+                                            .getWorkingDayEnd()
+                            )
+                            .atZone(
+                                    zone
+                            );
+
+
+            if (
+                    current.isBefore(
+                            workStart
+                    )
+            ) {
+
+                current =
+                        workStart;
+            }
+
+
+            if (
+                    !current.isBefore(
+                            workEnd
+                    )
+            ) {
+
+                current =
+                        nextWorkingDayStart(
+                                date
+                        );
+
+                continue;
+            }
+
+
+            ZonedDateTime segmentEnd =
+                    end.isBefore(
+                            workEnd
+                    )
+                            ? end
+                            : workEnd;
+
+
+            if (
+                    segmentEnd.isAfter(
+                            current
+                    )
+            ) {
+
+                totalMinutes +=
+                        Duration
+                                .between(
+                                        current,
+                                        segmentEnd
+                                )
+                                .toMinutes();
+            }
+
+
+            if (
+                    !segmentEnd.isBefore(
+                            end
+                    )
+            ) {
 
                 break;
             }
 
-            /*
-             * Consume today's remaining SLA time.
-             */
-            remainingMinutes -=
-                availableMinutesToday;
 
-            /*
-             * Move to the next working day
-             * at 09:00 IST.
-             */
-            cursor =
-                nextWorkingDayStart(
-                    currentDate.plusDays(1)
-                );
+            current =
+                    nextWorkingDayStart(
+                            date
+                    );
         }
 
-        return cursor.toOffsetDateTime();
+
+        return Math.max(
+                totalMinutes,
+                0
+        );
     }
 
-    @Transactional(readOnly = true)
-    public ZonedDateTime normalizeToWorkingTime(
-            ZonedDateTime value) {
 
-        ZonedDateTime indiaTime =
-            value.withZoneSameInstant(
-                zoneId()
-            );
+    /*
+     * Convenience overload for "now".
+     */
+    public long calculateRemainingWorkingMinutes(
+            OffsetDateTime deadline
+    ) {
+
+        return calculateRemainingWorkingMinutes(
+                OffsetDateTime.now(),
+                deadline
+        );
+    }
+
+
+    /*
+     * =========================================================
+     * NORMALIZE TO WORKING TIME
+     * =========================================================
+     */
+    private ZonedDateTime normalizeToWorkingTime(
+            ZonedDateTime value
+    ) {
 
         LocalDate date =
-            indiaTime.toLocalDate();
+                value.toLocalDate();
 
-        LocalTime time =
-            indiaTime.toLocalTime();
 
-        /*
-         * Weekend or configured holiday.
-         */
-        if (!isWorkingDay(date)) {
-
-            return nextWorkingDayStart(
-                date.plusDays(1)
-            );
-        }
-
-        LocalTime start =
-            properties.getWorkingDayStart();
-
-        LocalTime end =
-            properties.getWorkingDayEnd();
-
-        /*
-         * Before 09:00.
-         */
-        if (time.isBefore(start)) {
-
-            return ZonedDateTime.of(
-                date,
-                start,
-                zoneId()
-            );
-        }
-
-        /*
-         * 17:00 or later.
-         */
-        if (!time.isBefore(end)) {
-
-            return nextWorkingDayStart(
-                date.plusDays(1)
-            );
-        }
-
-        return indiaTime;
-    }
-
-    @Transactional(readOnly = true)
-    public ZonedDateTime nextWorkingDayStart(
-            LocalDate startingDate) {
-
-        LocalDate candidate =
-            startingDate;
-
-        int safetyCounter =
-            0;
-
-        while (
-            !isWorkingDay(
-                candidate
-            )
+        if (
+                !isWorkingDay(
+                        date
+                )
         ) {
 
-            candidate =
-                candidate.plusDays(1);
-
-            safetyCounter++;
-
-            if (
-                safetyCounter > 366
-            ) {
-
-                throw new IllegalStateException(
-                    "Unable to find next working day."
-                );
-            }
+            return nextWorkingDayStart(
+                    date
+            );
         }
 
-        return ZonedDateTime.of(
-            candidate,
-            properties.getWorkingDayStart(),
-            zoneId()
-        );
+
+        LocalTime time =
+                value.toLocalTime();
+
+
+        if (
+                time.isBefore(
+                        properties
+                                .getWorkingDayStart()
+                )
+        ) {
+
+            return date
+                    .atTime(
+                            properties
+                                    .getWorkingDayStart()
+                    )
+                    .atZone(
+                            zoneId()
+                    );
+        }
+
+
+        if (
+                !time.isBefore(
+                        properties
+                                .getWorkingDayEnd()
+                )
+        ) {
+
+            return nextWorkingDayStart(
+                    date
+            );
+        }
+
+
+        return value;
+    }
+
+
+    /*
+     * =========================================================
+     * NEXT WORKING DAY
+     * =========================================================
+     */
+    private ZonedDateTime nextWorkingDayStart(
+            LocalDate date
+    ) {
+
+        LocalDate next =
+                date.plusDays(
+                        1
+                );
+
+
+        while (
+                !isWorkingDay(
+                        next
+                )
+        ) {
+
+            next =
+                    next.plusDays(
+                            1
+                    );
+        }
+
+
+        return next
+                .atTime(
+                        properties
+                                .getWorkingDayStart()
+                )
+                .atZone(
+                        zoneId()
+                );
     }
 }

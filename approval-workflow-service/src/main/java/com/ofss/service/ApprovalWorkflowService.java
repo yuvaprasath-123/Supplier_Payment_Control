@@ -1,20 +1,223 @@
 package com.ofss.service;
-import com.ofss.dto.*;
+
+import com.ofss.dto.ApprovalRequests;
+import com.ofss.dto.ApprovalWorkflowResponse;
+import com.ofss.dto.CreateApprovalWorkflowRequest;
+import com.ofss.dto.DecisionRequest;
+import com.ofss.dto.EscalateWorkflowRequest;
+
 import com.ofss.entity.ApprovalTask;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-/** Compatibility adapter. New callers should use routes and tasks. */
+
+/*
+ * Compatibility adapter.
+ *
+ * New workflow creation should preferably use the
+ * route + task APIs directly.
+ */
 @Service
 public class ApprovalWorkflowService {
+
     private final ApprovalService service;
-    public ApprovalWorkflowService(ApprovalService service) { this.service=service; }
-    @Transactional public ApprovalWorkflowResponse create(CreateApprovalWorkflowRequest r,String token) {
-        service.route(new ApprovalRequests.Route(r.paymentId(),r.requesterId(),r.paymentAmount(),r.riskBand(),r.amountApprovalLevel(),null));
-        return response(service.create(new ApprovalRequests.Task(r.paymentId(),r.assignedApproverId(),r.slaMinutes()),token));
+
+
+    public ApprovalWorkflowService(
+            ApprovalService service
+    ) {
+        this.service = service;
     }
-    public ApprovalWorkflowResponse get(Long id) { return response(service.get(id)); }
-    public ApprovalWorkflowResponse approve(Long id,DecisionRequest r,String token) { return response(service.decide(id,new ApprovalRequests.Decision(r.approverId(),r.remark()),token,false,false)); }
-    public ApprovalWorkflowResponse reject(Long id,DecisionRequest r,String token) { return response(service.decide(id,new ApprovalRequests.Decision(r.approverId(),r.remark()),token,true,false)); }
-    public ApprovalWorkflowResponse escalate(Long id,EscalateWorkflowRequest r,String token) { return response(service.escalate(id,new ApprovalRequests.Escalate(r.backupApproverId(),r.remark()),token)); }
-    private ApprovalWorkflowResponse response(ApprovalTask t) { return new ApprovalWorkflowResponse(t.id,t.paymentId,t.status,t.requiredLevel,t.decidedBy,t.remark,t.dueAt); }
+
+
+    /*
+     * =========================================================
+     * CREATE WORKFLOW
+     * =========================================================
+     */
+    @Transactional
+    public ApprovalWorkflowResponse create(
+            CreateApprovalWorkflowRequest request,
+            String token
+    ) {
+
+        /*
+         * Create approval route.
+         *
+         * Required approval level remains based on:
+         *
+         * MAX(
+         *     amount approval level,
+         *     risk approval level
+         * )
+         */
+        service.route(
+                new ApprovalRequests.Route(
+                        request.paymentId(),
+                        request.requesterId(),
+                        request.paymentAmount(),
+                        request.riskBand(),
+                        request.amountApprovalLevel(),
+                        null
+                )
+        );
+
+
+        /*
+         * IMPORTANT:
+         *
+         * The legacy CreateApprovalWorkflowRequest
+         * currently does not contain invoiceDueDate.
+         *
+         * Therefore this compatibility endpoint
+         * passes null.
+         *
+         * ApprovalService.calculateEffectiveDueAt(...)
+         * must treat null as:
+         *
+         * "use normal business SLA deadline".
+         *
+         * The normal internal assignment flow will
+         * eventually provide the actual invoice due date.
+         */
+        ApprovalTask task =
+                service.create(
+                        new ApprovalRequests.Task(
+                                request.paymentId(),
+                                request.assignedApproverId(),
+                                request.slaMinutes(),
+                                null
+                        ),
+                        token
+                );
+
+
+        return response(
+                task
+        );
+    }
+
+
+    /*
+     * =========================================================
+     * GET WORKFLOW
+     * =========================================================
+     */
+    public ApprovalWorkflowResponse get(
+            Long id
+    ) {
+
+        return response(
+                service.get(id)
+        );
+    }
+
+
+    /*
+     * =========================================================
+     * APPROVE
+     * =========================================================
+     */
+    public ApprovalWorkflowResponse approve(
+            Long id,
+            DecisionRequest request,
+            String token
+    ) {
+
+        ApprovalTask task =
+                service.decide(
+                        id,
+                        new ApprovalRequests.Decision(
+                                request.approverId(),
+                                request.remark()
+                        ),
+                        token,
+                        false,
+                        false
+                );
+
+
+        return response(
+                task
+        );
+    }
+
+
+    /*
+     * =========================================================
+     * REJECT
+     * =========================================================
+     */
+    public ApprovalWorkflowResponse reject(
+            Long id,
+            DecisionRequest request,
+            String token
+    ) {
+
+        ApprovalTask task =
+                service.decide(
+                        id,
+                        new ApprovalRequests.Decision(
+                                request.approverId(),
+                                request.remark()
+                        ),
+                        token,
+                        true,
+                        false
+                );
+
+
+        return response(
+                task
+        );
+    }
+
+
+    /*
+     * =========================================================
+     * ESCALATE
+     * =========================================================
+     */
+    public ApprovalWorkflowResponse escalate(
+            Long id,
+            EscalateWorkflowRequest request,
+            String token
+    ) {
+
+        ApprovalTask task =
+                service.escalate(
+                        id,
+                        new ApprovalRequests.Escalate(
+                                request.backupApproverId(),
+                                request.remark()
+                        ),
+                        token
+                );
+
+
+        return response(
+                task
+        );
+    }
+
+
+    /*
+     * =========================================================
+     * RESPONSE
+     * =========================================================
+     */
+    private ApprovalWorkflowResponse response(
+            ApprovalTask task
+    ) {
+
+        return new ApprovalWorkflowResponse(
+                task.id,
+                task.paymentId,
+                task.status,
+                task.requiredLevel,
+                task.decidedBy,
+                task.remark,
+                task.dueAt
+        );
+    }
 }

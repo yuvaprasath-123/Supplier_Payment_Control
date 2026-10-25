@@ -3,6 +3,7 @@ package com.ofss.entity;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -29,6 +30,24 @@ public class PaymentRequest {
             nullable = false
     )
     private Long invoiceId;
+
+    /*
+     * Snapshot of the invoice due date.
+     *
+     * supplier-invoice-service remains the owner
+     * of invoice data.
+     *
+     * payment-request-service stores the due date
+     * needed by the downstream approval workflow.
+     *
+     * Existing historical payment rows may be null,
+     * therefore the database migration initially keeps
+     * this column nullable.
+     */
+    @Column(
+            name = "INVOICE_DUE_DATE"
+    )
+    private LocalDate invoiceDueDate;
 
     @Column(
             name = "SUPPLIER_ID",
@@ -93,14 +112,14 @@ public class PaymentRequest {
             nullable = false
     )
     private LocalDateTime updatedAt;
-    
+
     @Version
     @Column(
-        name = "VERSION",
-        nullable = false
+            name = "VERSION",
+            nullable = false
     )
     private Long version;
-    
+
     @Column(name = "TRANSACTION_REFERENCE")
     private String transactionReference;
 
@@ -110,8 +129,10 @@ public class PaymentRequest {
     @Column(name = "FAILURE_REASON")
     private String failureReason;
 
+
     public PaymentRequest() {
     }
+
 
     @PrePersist
     public void prePersist() {
@@ -119,171 +140,311 @@ public class PaymentRequest {
         LocalDateTime now =
                 LocalDateTime.now();
 
-        this.createdAt = now;
-        this.updatedAt = now;
+        this.createdAt =
+                now;
 
-        if (this.status == null) {
-            this.status = PaymentStatus.DRAFT;
+        this.updatedAt =
+                now;
+
+        if (
+                this.status == null
+        ) {
+
+            this.status =
+                    PaymentStatus.DRAFT;
         }
     }
 
+
     @PreUpdate
     public void preUpdate() {
+
         this.updatedAt =
                 LocalDateTime.now();
     }
 
+
     public Long getId() {
+
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+
+    public void setId(
+            Long id
+    ) {
+
+        this.id =
+                id;
     }
 
+
     public Long getInvoiceId() {
+
         return invoiceId;
     }
 
-    public void setInvoiceId(Long invoiceId) {
-        this.invoiceId = invoiceId;
+
+    public void setInvoiceId(
+            Long invoiceId
+    ) {
+
+        this.invoiceId =
+                invoiceId;
     }
 
+
+    public LocalDate getInvoiceDueDate() {
+
+        return invoiceDueDate;
+    }
+
+
+    public void setInvoiceDueDate(
+            LocalDate invoiceDueDate
+    ) {
+
+        this.invoiceDueDate =
+                invoiceDueDate;
+    }
+
+
     public Long getSupplierId() {
+
         return supplierId;
     }
 
-    public void setSupplierId(Long supplierId) {
-        this.supplierId = supplierId;
+
+    public void setSupplierId(
+            Long supplierId
+    ) {
+
+        this.supplierId =
+                supplierId;
     }
 
+
     public BigDecimal getPaymentAmount() {
+
         return paymentAmount;
     }
+
 
     public void setPaymentAmount(
             BigDecimal paymentAmount
     ) {
-        this.paymentAmount = paymentAmount;
+
+        this.paymentAmount =
+                paymentAmount;
     }
 
+
     public Long getRequesterId() {
+
         return requesterId;
     }
 
-    public void setRequesterId(Long requesterId) {
-        this.requesterId = requesterId;
+
+    public void setRequesterId(
+            Long requesterId
+    ) {
+
+        this.requesterId =
+                requesterId;
     }
 
+
     public PaymentStatus getStatus() {
+
         return status;
     }
+
 
     public void setStatus(
             PaymentStatus status
     ) {
-        this.status = status;
+
+        this.status =
+                status;
     }
 
+
     public Integer getRiskScore() {
+
         return riskScore;
     }
 
-    public void setRiskScore(Integer riskScore) {
-        this.riskScore = riskScore;
+
+    public void setRiskScore(
+            Integer riskScore
+    ) {
+
+        this.riskScore =
+                riskScore;
     }
 
+
     public String getRiskBand() {
+
         return riskBand;
     }
 
-    public void setRiskBand(String riskBand) {
-        this.riskBand = riskBand;
+
+    public void setRiskBand(
+            String riskBand
+    ) {
+
+        this.riskBand =
+                riskBand;
     }
 
+
     public String getRequiredApprovalLevel() {
+
         return requiredApprovalLevel;
     }
+
 
     public void setRequiredApprovalLevel(
             String requiredApprovalLevel
     ) {
+
         this.requiredApprovalLevel =
                 requiredApprovalLevel;
     }
 
+
     public LocalDateTime getCreatedAt() {
+
         return createdAt;
     }
+
 
     public void setCreatedAt(
             LocalDateTime createdAt
     ) {
-        this.createdAt = createdAt;
+
+        this.createdAt =
+                createdAt;
     }
 
+
     public LocalDateTime getSubmittedAt() {
+
         return submittedAt;
     }
+
 
     public void setSubmittedAt(
             LocalDateTime submittedAt
     ) {
-        this.submittedAt = submittedAt;
+
+        this.submittedAt =
+                submittedAt;
     }
 
+
     public LocalDateTime getApprovedAt() {
+
         return approvedAt;
     }
+
 
     public void setApprovedAt(
             LocalDateTime approvedAt
     ) {
-        this.approvedAt = approvedAt;
+
+        this.approvedAt =
+                approvedAt;
     }
 
+
     public LocalDateTime getCompletedAt() {
+
         return completedAt;
     }
+
 
     public void setCompletedAt(
             LocalDateTime completedAt
     ) {
-        this.completedAt = completedAt;
+
+        this.completedAt =
+                completedAt;
     }
 
+
     public LocalDateTime getUpdatedAt() {
+
         return updatedAt;
     }
+
 
     public void setUpdatedAt(
             LocalDateTime updatedAt
     ) {
-        this.updatedAt = updatedAt;
+
+        this.updatedAt =
+                updatedAt;
     }
-    
+
+
+    public Long getVersion() {
+
+        return version;
+    }
+
+
+    public void setVersion(
+            Long version
+    ) {
+
+        this.version =
+                version;
+    }
+
+
     public String getTransactionReference() {
+
         return transactionReference;
     }
 
-    public void setTransactionReference(String transactionReference) {
-        this.transactionReference = transactionReference;
+
+    public void setTransactionReference(
+            String transactionReference
+    ) {
+
+        this.transactionReference =
+                transactionReference;
     }
-    
-    
+
+
     public LocalDateTime getFailedAt() {
+
         return failedAt;
     }
 
-    public void setFailedAt(LocalDateTime failedAt) {
-        this.failedAt = failedAt;
+
+    public void setFailedAt(
+            LocalDateTime failedAt
+    ) {
+
+        this.failedAt =
+                failedAt;
     }
 
+
     public String getFailureReason() {
+
         return failureReason;
     }
 
-    public void setFailureReason(String failureReason) {
-        this.failureReason = failureReason;
+
+    public void setFailureReason(
+            String failureReason
+    ) {
+
+        this.failureReason =
+                failureReason;
     }
 }

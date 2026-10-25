@@ -5,6 +5,7 @@ import com.ofss.entity.*;
 import com.ofss.event.ApprovalDecidedEvent;
 import com.ofss.repository.*;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -293,8 +294,11 @@ public class ApprovalService {
                         : r.slaMinutes();
 
 
-        if (t.slaMinutes < 1
-                || t.slaMinutes > 525600) {
+        if (
+                t.slaMinutes < 1
+                ||
+                t.slaMinutes > 525600
+        ) {
 
             throw conflict(
                     "SLA must be between 1 and 525600 minutes"
@@ -303,26 +307,34 @@ public class ApprovalService {
 
 
         /*
-         * =====================================================
-         * HOLIDAY-AWARE INITIAL SLA
-         * =====================================================
-         *
-         * OLD:
-         *
-         * t.dueAt =
-         *     t.createdAt.plusMinutes(
-         *         t.slaMinutes
-         *     );
-         *
-         * NEW:
-         *
-         * Calculate the deadline using business working time.
+         * Normal business-calendar deadline.
          */
-        t.dueAt =
+        OffsetDateTime normalSlaDeadline =
                 businessCalendarService
                         .calculateDueAt(
                                 t.createdAt,
                                 t.slaMinutes
+                        );
+
+
+        /*
+         * Invoice due date MUST be supplied from the
+         * invoice/payment assignment data.  */
+        LocalDate invoiceDueDate =
+                r.invoiceDueDate();
+
+
+        /*
+         * Effective deadline is simply the earlier deadline.
+         *
+         * It DOES NOT alter the approval level.
+         */
+        t.dueAt =
+                businessCalendarService
+                        .calculateEffectiveDueAt(
+                                t.createdAt,
+                                t.slaMinutes,
+                                invoiceDueDate
                         );
 
 

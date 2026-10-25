@@ -1,10 +1,10 @@
-
 package com.ofss.controller;
 
 import com.ofss.entity.ApprovalTask;
 import com.ofss.repository.TrustedApprovalDataRepository;
 import com.ofss.security.SecurityConfiguration.JwtPrincipal;
 import com.ofss.service.ApprovalService;
+import com.ofss.service.BusinessCalendarService;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -27,13 +27,25 @@ public class PaymentSlaTrackerController {
 
     private final TrustedApprovalDataRepository trustedData;
 
+    private final BusinessCalendarService businessCalendarService;
+
+
     public PaymentSlaTrackerController(
             ApprovalService approvalService,
-            TrustedApprovalDataRepository trustedData
+            TrustedApprovalDataRepository trustedData,
+            BusinessCalendarService businessCalendarService
     ) {
-        this.approvalService = approvalService;
-        this.trustedData = trustedData;
+
+        this.approvalService =
+                approvalService;
+
+        this.trustedData =
+                trustedData;
+
+        this.businessCalendarService =
+                businessCalendarService;
     }
+
 
     @GetMapping("/{paymentId}/sla-tracker")
     @Transactional(readOnly = true)
@@ -42,19 +54,31 @@ public class PaymentSlaTrackerController {
             Authentication authentication
     ) {
 
-        if (paymentId == null || paymentId <= 0) {
+        if (
+                paymentId == null
+                ||
+                paymentId <= 0
+        ) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Valid payment ID required"
             );
         }
 
-        if (authentication == null
-                || !authentication.isAuthenticated()
-                || !(authentication.getPrincipal()
+
+        if (
+                authentication == null
+                ||
+                !authentication.isAuthenticated()
+                ||
+                !(authentication.getPrincipal()
                         instanceof JwtPrincipal principal)
-                || principal.userId() == null
-                || principal.userId() <= 0) {
+                ||
+                principal.userId() == null
+                ||
+                principal.userId() <= 0
+        ) {
 
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED,
@@ -62,191 +86,369 @@ public class PaymentSlaTrackerController {
             );
         }
 
-        boolean manager = hasRole(
-                authentication,
-                "FINANCE_MANAGER"
-        );
 
-        boolean requester = hasRole(
-                authentication,
-                "PAYMENT_REQUESTER"
-        );
+        boolean manager =
+                hasRole(
+                        authentication,
+                        "FINANCE_MANAGER"
+                );
 
-        boolean approver = hasRole(
-                authentication,
-                "FINANCE_APPROVER"
-        );
 
-        if (!manager && !requester && !approver) {
+        boolean requester =
+                hasRole(
+                        authentication,
+                        "PAYMENT_REQUESTER"
+                );
+
+
+        boolean approver =
+                hasRole(
+                        authentication,
+                        "FINANCE_APPROVER"
+                );
+
+
+        if (
+                !manager
+                &&
+                !requester
+                &&
+                !approver
+        ) {
+
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "SLA tracker access denied"
             );
         }
 
+
         /*
-         * Read payment ownership from trusted Oracle data.
-         * Never accept requester ID from the browser.
+         * Load trusted payment information.
          */
-        var payment = trustedData.getPaymentData(paymentId);
+        var payment =
+                trustedData
+                        .getPaymentData(
+                                paymentId
+                        );
+
 
         boolean ownsPayment =
                 requester
-                && principal.userId().equals(
-                        payment.requesterId()
-                );
+                &&
+                principal.userId()
+                        .equals(
+                                payment.requesterId()
+                        );
 
-        /*
-         * Reject unrelated requesters before retrieving
-         * approval-task history.
-         */
-        if (!manager && !approver && !ownsPayment) {
+
+        if (
+                !manager
+                &&
+                !approver
+                &&
+                !ownsPayment
+        ) {
+
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "SLA tracker access denied"
             );
         }
 
-        ApprovalService.History history =
-                approvalService.history(paymentId);
 
-        ApprovalTask task = history.task();
+        ApprovalService.History history =
+                approvalService
+                        .history(
+                                paymentId
+                        );
+
+
+        ApprovalTask task =
+                history.task();
+
+
+        if (task == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Approval task not found"
+            );
+        }
+
 
         boolean assignedApprover =
                 approver
-                && principal.userId().equals(
-                        task.assignedApproverId
-                );
+                &&
+                principal.userId()
+                        .equals(
+                                task.assignedApproverId
+                        );
 
-        /*
-         * Access is limited to:
-         * 1. Finance Managers.
-         * 2. Payment owners with requester role.
-         * 3. Currently assigned Finance Approvers.
-         */
-        if (!manager && !ownsPayment && !assignedApprover) {
+
+        if (
+                !manager
+                &&
+                !ownsPayment
+                &&
+                !assignedApprover
+        ) {
+
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "SLA tracker access denied"
             );
         }
 
-        /*
-         * Use DTO projections instead of returning
-         * internal JPA entities directly.
-         */
+
         List<DecisionItem> decisionItems =
-                history.decisions()
+                history
+                        .decisions()
                         .stream()
-                        .map(decision -> new DecisionItem(
-                                decision.id,
-                                decision.approverId,
-                                decision.decision,
-                                decision.remark,
-                                decision.decidedAt
-                        ))
+                        .map(
+                                decision ->
+                                        new DecisionItem(
+                                                decision.id,
+                                                decision.approverId,
+                                                decision.decision,
+                                                decision.remark,
+                                                decision.decidedAt
+                                        )
+                        )
                         .toList();
+
 
         List<EscalationItem> escalationItems =
-                history.escalations()
+                history
+                        .escalations()
                         .stream()
-                        .map(escalation -> new EscalationItem(
-                                escalation.id,
-                                escalation.action,
-                                escalation.previousApproverId,
-                                escalation.assignedApproverId,
-                                escalation.previousLevel == null
-                                        ? null
-                                        : escalation.previousLevel.name(),
-                                escalation.requiredLevel == null
-                                        ? null
-                                        : escalation.requiredLevel.name(),
-                                escalation.remark,
-                                escalation.occurredAt
-                        ))
+                        .map(
+                                escalation ->
+                                        new EscalationItem(
+                                                escalation.id,
+                                                escalation.action,
+                                                escalation.previousApproverId,
+                                                escalation.assignedApproverId,
+
+                                                escalation.previousLevel == null
+                                                        ? null
+                                                        : escalation.previousLevel.name(),
+
+                                                escalation.requiredLevel == null
+                                                        ? null
+                                                        : escalation.requiredLevel.name(),
+
+                                                escalation.remark,
+                                                escalation.occurredAt
+                                        )
+                        )
                         .toList();
 
+
+        OffsetDateTime now =
+                OffsetDateTime.now();
+
+
+        /*
+         * Calendar expiry of the persisted effective deadline.
+         */
+        boolean slaExpired =
+                task.dueAt == null
+                ||
+                !now.isBefore(
+                        task.dueAt
+                );
+
+
+        /*
+         * =====================================================
+         * WORKING SLA REMAINING
+         * =====================================================
+         *
+         * This is NOT:
+         *
+         * dueAt - now
+         *
+         * It counts only configured working time.
+         *
+         * Example:
+         *
+         * Sunday -> Tuesday 17:00
+         *
+         * Sunday contributes 0.
+         * Monday contributes 8h.
+         * Tuesday contributes 8h.
+         */
+        long workingMinutesRemaining;
+
+
+        if (
+                task.dueAt == null
+                ||
+                slaExpired
+        ) {
+
+            workingMinutesRemaining =
+                    0;
+
+        } else {
+
+            workingMinutesRemaining =
+                    businessCalendarService
+                            .calculateRemainingWorkingMinutes(
+                                    now,
+                                    task.dueAt
+                            );
+        }
+
+
         return new TrackerResponse(
+
                 paymentId,
+
                 payment.paymentStatus(),
-                "L" + payment.requiredApprovalLevel(),
+
+                "L"
+                        + payment.requiredApprovalLevel(),
+
                 new TaskItem(
+
                         task.id,
-                        task.requiredLevel.name(),
-                        task.status.name(),
+
+                        task.requiredLevel == null
+                                ? null
+                                : task.requiredLevel.name(),
+
+                        task.status == null
+                                ? null
+                                : task.status.name(),
+
                         task.assignedApproverId,
+
                         task.slaMinutes,
+
                         task.createdAt,
+
                         task.dueAt,
-                        !OffsetDateTime.now().isBefore(
-                                task.dueAt
-                        )
+
+                        slaExpired,
+
+                        workingMinutesRemaining
                 ),
+
                 decisionItems,
+
                 escalationItems
         );
     }
+
 
     private boolean hasRole(
             Authentication authentication,
             String role
     ) {
 
-        String requiredAuthority = "ROLE_" + role;
+        String requiredAuthority =
+                "ROLE_" + role;
 
-        for (GrantedAuthority authority :
-                authentication.getAuthorities()) {
 
-            if (requiredAuthority.equals(
-                    authority.getAuthority()
-            )) {
+        for (
+                GrantedAuthority authority :
+                        authentication
+                                .getAuthorities()
+        ) {
+
+            if (
+                    requiredAuthority.equals(
+                            authority.getAuthority()
+                    )
+            ) {
+
                 return true;
             }
         }
 
+
         return false;
     }
 
+
     public record TrackerResponse(
+
             Long paymentId,
+
             String paymentStatus,
+
             String originalRequiredLevel,
+
             TaskItem task,
+
             List<DecisionItem> decisions,
+
             List<EscalationItem> escalations
+
     ) {
     }
+
 
     public record TaskItem(
+
             Long taskId,
+
             String currentLevel,
+
             String status,
+
             Long assignedApproverId,
+
             int slaMinutes,
+
             OffsetDateTime createdAt,
+
             OffsetDateTime dueAt,
-            boolean slaExpired
+
+            boolean slaExpired,
+
+            long workingMinutesRemaining
+
     ) {
     }
+
 
     public record DecisionItem(
+
             Long decisionId,
+
             Long approverId,
+
             String decision,
+
             String remark,
+
             OffsetDateTime decidedAt
+
     ) {
     }
 
+
     public record EscalationItem(
+
             Long escalationId,
+
             String action,
+
             Long previousApproverId,
+
             Long assignedApproverId,
+
             String previousLevel,
+
             String newLevel,
+
             String remark,
+
             OffsetDateTime occurredAt
+
     ) {
     }
 }

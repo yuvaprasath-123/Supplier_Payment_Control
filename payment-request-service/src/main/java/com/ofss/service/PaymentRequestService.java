@@ -3,22 +3,30 @@ package com.ofss.service;
 import com.ofss.client.InvoiceClientResponse;
 import com.ofss.client.SupplierClientResponse;
 import com.ofss.client.SupplierInvoiceClient;
-import com.ofss.dto.*;
+
+import com.ofss.dto.CreatePaymentRequest;
+import com.ofss.dto.PaymentRequestResponse;
+import com.ofss.dto.PaymentStatusHistoryResponse;
+import com.ofss.dto.SubmitPaymentResponse;
+import com.ofss.dto.UpdatePaymentRequest;
+
 import com.ofss.entity.PaymentRequest;
 import com.ofss.entity.PaymentStatus;
 import com.ofss.entity.PaymentStatusHistory;
+
 import com.ofss.event.PaymentSubmittedEvent;
+
 import com.ofss.exception.BadRequestException;
 import com.ofss.exception.ResourceNotFoundException;
+
 import com.ofss.kafka.PaymentEventProducer;
+
 import com.ofss.repository.PaymentRequestRepository;
 import com.ofss.repository.PaymentStatusHistoryRepository;
+
 import com.ofss.security.AuthUtil;
 
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,17 +36,24 @@ import java.util.List;
 @Service
 public class PaymentRequestService {
 
-    private final PaymentRequestRepository paymentRequestRepository;
+    private final PaymentRequestRepository
+            paymentRequestRepository;
 
-    private final PaymentStatusHistoryRepository paymentStatusHistoryRepository;
+    private final PaymentStatusHistoryRepository
+            paymentStatusHistoryRepository;
 
-    private final SupplierInvoiceClient supplierInvoiceClient;
+    private final SupplierInvoiceClient
+            supplierInvoiceClient;
 
-    private final AuthUtil authUtil;
+    private final AuthUtil
+            authUtil;
 
-    private final PaymentEventProducer paymentEventProducer;
+    private final PaymentEventProducer
+            paymentEventProducer;
 
-    private final PaymentAuditOutboxService paymentAuditOutboxService;
+    private final PaymentAuditOutboxService
+            paymentAuditOutboxService;
+
 
     public PaymentRequestService(
             PaymentRequestRepository paymentRequestRepository,
@@ -48,65 +63,157 @@ public class PaymentRequestService {
             PaymentEventProducer paymentEventProducer,
             PaymentAuditOutboxService paymentAuditOutboxService
     ) {
-        this.paymentRequestRepository = paymentRequestRepository;
-        this.paymentStatusHistoryRepository = paymentStatusHistoryRepository;
-        this.supplierInvoiceClient = supplierInvoiceClient;
-        this.authUtil = authUtil;
-        this.paymentEventProducer = paymentEventProducer;
-        this.paymentAuditOutboxService = paymentAuditOutboxService;
+
+        this.paymentRequestRepository =
+                paymentRequestRepository;
+
+        this.paymentStatusHistoryRepository =
+                paymentStatusHistoryRepository;
+
+        this.supplierInvoiceClient =
+                supplierInvoiceClient;
+
+        this.authUtil =
+                authUtil;
+
+        this.paymentEventProducer =
+                paymentEventProducer;
+
+        this.paymentAuditOutboxService =
+                paymentAuditOutboxService;
     }
 
+
     /*
-     * Create payment request.
+     * =========================================================
+     * CREATE PAYMENT
+     * =========================================================
      *
-     * All three operations share the same Oracle transaction:
+     * supplier-invoice-service is contacted here because
+     * payment-request-service already validates the invoice.
      *
-     * 1. Save the payment request.
-     * 2. Save payment status history.
-     * 3. Save PAYMENT_REQUEST_CREATED audit outbox event.
+     * The invoice due date is persisted as a snapshot in
+     * PAY_PAYMENT_REQUESTS.INVOICE_DUE_DATE.
      *
-     * No HTTP or Kafka audit publishing occurs here.
+     * Approval workflow therefore does not need another
+     * supplier-invoice HTTP call later.
      */
     @Transactional
     public PaymentRequestResponse createPayment(
             CreatePaymentRequest request
     ) {
 
-        Long requesterId = authUtil.getCurrentUserId();
+        Long requesterId =
+                authUtil.getCurrentUserId();
+
 
         InvoiceClientResponse invoice =
-                supplierInvoiceClient.getInvoice(
-                        request.invoiceId()
-                );
+                supplierInvoiceClient
+                        .getInvoice(
+                                request.invoiceId()
+                        );
+
+
+        if (
+                invoice == null
+                ||
+                invoice.invoiceId() == null
+        ) {
+
+            throw new BadRequestException(
+                    "Invoice could not be loaded"
+            );
+        }
+
+
+        if (
+                invoice.dueDate() == null
+        ) {
+
+            throw new BadRequestException(
+                    "Invoice due date is required"
+            );
+        }
+
 
         SupplierClientResponse supplier =
-                supplierInvoiceClient.getSupplier(
-                        invoice.supplierId()
-                );
+                supplierInvoiceClient
+                        .getSupplier(
+                                invoice.supplierId()
+                        );
 
-        if (!"ACTIVE".equalsIgnoreCase(supplier.status())) {
+
+        if (
+                !"ACTIVE"
+                        .equalsIgnoreCase(
+                                supplier.status()
+                        )
+        ) {
+
             throw new BadRequestException(
-                    "Payment request cannot be created for an inactive supplier"
+                    "Payment request cannot be created "
+                            + "for an inactive supplier"
             );
         }
 
-        if (paymentRequestRepository.existsByInvoiceId(
-                request.invoiceId()
-        )) {
+
+        if (
+                paymentRequestRepository
+                        .existsByInvoiceId(
+                                request.invoiceId()
+                        )
+        ) {
+
             throw new BadRequestException(
-                    "A payment request already exists for this invoice"
+                    "A payment request already exists "
+                            + "for this invoice"
             );
         }
 
-        PaymentRequest payment = new PaymentRequest();
 
-        payment.setInvoiceId(invoice.invoiceId());
-        payment.setSupplierId(invoice.supplierId());
-        payment.setPaymentAmount(request.paymentAmount());
-        payment.setRequesterId(requesterId);
-        payment.setStatus(PaymentStatus.DRAFT);
+        PaymentRequest payment =
+                new PaymentRequest();
 
-        payment = paymentRequestRepository.save(payment);
+
+        payment.setInvoiceId(
+                invoice.invoiceId()
+        );
+
+
+        /*
+         * Persist authoritative due-date snapshot.
+         */
+        payment.setInvoiceDueDate(
+                invoice.dueDate()
+        );
+
+
+        payment.setSupplierId(
+                invoice.supplierId()
+        );
+
+
+        payment.setPaymentAmount(
+                request.paymentAmount()
+        );
+
+
+        payment.setRequesterId(
+                requesterId
+        );
+
+
+        payment.setStatus(
+                PaymentStatus.DRAFT
+        );
+
+
+        payment =
+                paymentRequestRepository
+                        .save(
+                                payment
+                        );
+
 
         saveStatusHistory(
                 payment.getId(),
@@ -116,37 +223,27 @@ public class PaymentRequestService {
                 "Payment request created"
         );
 
-        /*
-         * Persist the audit event in PAY_AUDIT_OUTBOX.
-         *
-         * PaymentAuditOutboxService uses:
-         *
-         * @Transactional(propagation = Propagation.MANDATORY)
-         *
-         * Therefore, this insert participates in the
-         * existing payment-creation transaction.
-         *
-         * If the insert fails, payment creation rolls back.
-         */
-        paymentAuditOutboxService.recordPaymentCreated(
-                payment.getId(),
-                payment.getInvoiceId(),
-                payment.getSupplierId(),
-                payment.getPaymentAmount(),
-                requesterId
-        );
 
-        return mapToResponse(payment);
+        paymentAuditOutboxService
+                .recordPaymentCreated(
+                        payment.getId(),
+                        payment.getInvoiceId(),
+                        payment.getSupplierId(),
+                        payment.getPaymentAmount(),
+                        requesterId
+                );
+
+
+        return mapToResponse(
+                payment
+        );
     }
 
+
     /*
-     * Read one payment.
-     *
-     * PAYMENT_REQUESTER:
-     * Can read only their own payment.
-     *
-     * FINANCE_MANAGER:
-     * Can read any payment for audit purposes.
+     * =========================================================
+     * GET PAYMENT
+     * =========================================================
      */
     @Transactional(readOnly = true)
     public PaymentRequestResponse getPayment(
@@ -154,36 +251,41 @@ public class PaymentRequestService {
     ) {
 
         PaymentRequest payment =
-                getPaymentEntity(paymentId);
+                getPaymentEntity(
+                        paymentId
+                );
 
-        Long currentUserId =
-                authUtil.getCurrentUserId();
+
+        Long currentRequesterId =
+                authUtil
+                        .getCurrentUserId();
+
 
         if (
-                !isFinanceManager() &&
-                !payment.getRequesterId().equals(currentUserId)
+                !payment
+                        .getRequesterId()
+                        .equals(
+                                currentRequesterId
+                        )
         ) {
+
             throw new AccessDeniedException(
-                    "You are not authorized to view this payment request"
+                    "You are not authorized "
+                            + "to view this payment request"
             );
         }
 
-        return mapToResponse(payment);
+
+        return mapToResponse(
+                payment
+        );
     }
 
+
     /*
-     * List payments.
-     *
-     * PAYMENT_REQUESTER:
-     * Existing behavior is preserved. Only payments created
-     * by the current requester are returned.
-     *
-     * FINANCE_MANAGER:
-     * Can inspect all payments for audit purposes and apply
-     * supplier/status filters.
-     *
-     * For the current project volume the manager-side audit
-     * filtering is performed after findAll().
+     * =========================================================
+     * GET PAYMENTS
+     * =========================================================
      */
     @Transactional(readOnly = true)
     public List<PaymentRequestResponse> getPayments(
@@ -191,32 +293,17 @@ public class PaymentRequestService {
             PaymentStatus status
     ) {
 
-        if (isFinanceManager()) {
-
-            return paymentRequestRepository
-                    .findAll()
-                    .stream()
-                    .filter(payment ->
-                            supplierId == null ||
-                            supplierId.equals(
-                                    payment.getSupplierId()
-                            )
-                    )
-                    .filter(payment ->
-                            status == null ||
-                            status == payment.getStatus()
-                    )
-                    .map(this::mapToResponse)
-                    .toList();
-        }
-
         Long currentRequesterId =
-                authUtil.getCurrentUserId();
+                authUtil
+                        .getCurrentUserId();
+
 
         List<PaymentRequest> payments;
 
+
         if (
-                supplierId != null &&
+                supplierId != null
+                &&
                 status != null
         ) {
 
@@ -228,7 +315,10 @@ public class PaymentRequestService {
                                     status
                             );
 
-        } else if (supplierId != null) {
+
+        } else if (
+                supplierId != null
+        ) {
 
             payments =
                     paymentRequestRepository
@@ -237,7 +327,10 @@ public class PaymentRequestService {
                                     supplierId
                             );
 
-        } else if (status != null) {
+
+        } else if (
+                status != null
+        ) {
 
             payments =
                     paymentRequestRepository
@@ -245,6 +338,7 @@ public class PaymentRequestService {
                                     currentRequesterId,
                                     status
                             );
+
 
         } else {
 
@@ -255,22 +349,20 @@ public class PaymentRequestService {
                             );
         }
 
+
         return payments
                 .stream()
-                .map(this::mapToResponse)
+                .map(
+                        this::mapToResponse
+                )
                 .toList();
     }
 
+
     /*
-     * Update payment.
-     *
-     * Write authorization remains unchanged.
-     *
-     * Only the requester who owns the payment may
-     * update a DRAFT payment.
-     *
-     * FINANCE_MANAGER audit permission does not grant
-     * modification rights.
+     * =========================================================
+     * UPDATE DRAFT PAYMENT
+     * =========================================================
      */
     @Transactional
     public PaymentRequestResponse updateDraftPayment(
@@ -279,49 +371,65 @@ public class PaymentRequestService {
     ) {
 
         PaymentRequest payment =
-                getPaymentEntity(paymentId);
+                getPaymentEntity(
+                        paymentId
+                );
+
 
         Long currentUserId =
-                authUtil.getCurrentUserId();
+                authUtil
+                        .getCurrentUserId();
+
 
         if (
-                !payment.getRequesterId().equals(
-                        currentUserId
-                )
+                !payment
+                        .getRequesterId()
+                        .equals(
+                                currentUserId
+                        )
         ) {
+
             throw new AccessDeniedException(
-                    "You are not authorized to modify this payment request"
+                    "You are not authorized "
+                            + "to modify this payment request"
             );
         }
 
+
         if (
-                payment.getStatus() !=
-                PaymentStatus.DRAFT
+                payment.getStatus()
+                        != PaymentStatus.DRAFT
         ) {
+
             throw new BadRequestException(
-                    "Only DRAFT payment requests can be updated"
+                    "Only DRAFT payment requests "
+                            + "can be updated"
             );
         }
+
 
         payment.setPaymentAmount(
                 request.paymentAmount()
         );
 
-        payment =
-                paymentRequestRepository.save(
-                        payment
-                );
 
-        return mapToResponse(payment);
+        payment =
+                paymentRequestRepository
+                        .save(
+                                payment
+                        );
+
+
+        return mapToResponse(
+                payment
+        );
     }
 
+
     /*
-     * Submit payment.
-     *
-     * Write authorization remains unchanged.
-     *
-     * Only the requester who owns the payment can
-     * submit it.
+     * =========================================================
+     * SUBMIT PAYMENT
+     * =========================================================
      */
     @Transactional
     public SubmitPaymentResponse submitPayment(
@@ -329,68 +437,123 @@ public class PaymentRequestService {
     ) {
 
         PaymentRequest payment =
-                getPaymentEntity(paymentId);
+                getPaymentEntity(
+                        paymentId
+                );
+
 
         Long currentUserId =
-                authUtil.getCurrentUserId();
+                authUtil
+                        .getCurrentUserId();
+
 
         if (
-                !payment.getRequesterId().equals(
-                        currentUserId
-                )
+                !payment
+                        .getRequesterId()
+                        .equals(
+                                currentUserId
+                        )
         ) {
+
             throw new AccessDeniedException(
-                    "You are not authorized to submit this payment request"
+                    "You are not authorized "
+                            + "to submit this payment request"
             );
         }
+
 
         if (
-                payment.getStatus() !=
-                PaymentStatus.DRAFT
+                payment.getStatus()
+                        != PaymentStatus.DRAFT
         ) {
+
             throw new BadRequestException(
-                    "Only DRAFT payment requests can be submitted"
+                    "Only DRAFT payment requests "
+                            + "can be submitted"
             );
         }
 
+
+        /*
+         * Refresh the invoice before submission.
+         *
+         * This ensures that if the invoice due date was
+         * legitimately changed while the payment remained
+         * DRAFT, the submitted payment keeps the latest
+         * authoritative due date.
+         */
         InvoiceClientResponse invoice =
-                supplierInvoiceClient.getInvoice(
-                        payment.getInvoiceId()
-                );
+                supplierInvoiceClient
+                        .getInvoice(
+                                payment.getInvoiceId()
+                        );
+
+
+        if (
+                invoice == null
+                ||
+                invoice.dueDate() == null
+        ) {
+
+            throw new BadRequestException(
+                    "Invoice due date is required"
+            );
+        }
+
 
         SupplierClientResponse supplier =
-                supplierInvoiceClient.getSupplier(
-                        invoice.supplierId()
-                );
+                supplierInvoiceClient
+                        .getSupplier(
+                                invoice.supplierId()
+                        );
+
 
         if (
-                !"ACTIVE".equalsIgnoreCase(
-                        supplier.status()
-                )
+                !"ACTIVE"
+                        .equalsIgnoreCase(
+                                supplier.status()
+                        )
         ) {
+
             throw new BadRequestException(
-                    "Supplier is inactive. Payment cannot be submitted."
+                    "Supplier is inactive. "
+                            + "Payment cannot be submitted."
             );
         }
+
+
+        /*
+         * Refresh the persisted due-date snapshot.
+         */
+        payment.setInvoiceDueDate(
+                invoice.dueDate()
+        );
+
 
         PaymentStatus previousStatus =
                 payment.getStatus();
 
+
         LocalDateTime submittedAt =
                 LocalDateTime.now();
+
 
         payment.setStatus(
                 PaymentStatus.PENDING_VALIDATION
         );
 
+
         payment.setSubmittedAt(
                 submittedAt
         );
 
+
         payment =
-                paymentRequestRepository.save(
-                        payment
-                );
+                paymentRequestRepository
+                        .save(
+                                payment
+                        );
+
 
         saveStatusHistory(
                 paymentId,
@@ -399,6 +562,7 @@ public class PaymentRequestService {
                 currentUserId,
                 "Payment submitted for validation"
         );
+
 
         PaymentSubmittedEvent event =
                 new PaymentSubmittedEvent(
@@ -410,19 +574,26 @@ public class PaymentRequestService {
                         submittedAt
                 );
 
+
         System.out.println(
-                ">>> ABOUT TO PUBLISH KAFKA EVENT FOR PAYMENT ID = "
+                ">>> ABOUT TO PUBLISH KAFKA EVENT "
+                        + "FOR PAYMENT ID = "
                         + payment.getId()
         );
 
-        paymentEventProducer.publishPaymentSubmitted(
-                event
-        );
+
+        paymentEventProducer
+                .publishPaymentSubmitted(
+                        event
+                );
+
 
         System.out.println(
-                ">>> RETURNED FROM KAFKA PRODUCER FOR PAYMENT ID = "
+                ">>> RETURNED FROM KAFKA PRODUCER "
+                        + "FOR PAYMENT ID = "
                         + payment.getId()
         );
+
 
         return new SubmitPaymentResponse(
                 paymentId,
@@ -431,14 +602,11 @@ public class PaymentRequestService {
         );
     }
 
+
     /*
-     * Payment lifecycle timeline.
-     *
-     * PAYMENT_REQUESTER:
-     * Can read timeline only for their own payment.
-     *
-     * FINANCE_MANAGER:
-     * Can read any payment timeline for audit purposes.
+     * =========================================================
+     * PAYMENT TIMELINE
+     * =========================================================
      */
     @Transactional(readOnly = true)
     public List<PaymentStatusHistoryResponse> getTimeline(
@@ -446,88 +614,82 @@ public class PaymentRequestService {
     ) {
 
         PaymentRequest payment =
-                getPaymentEntity(paymentId);
+                getPaymentEntity(
+                        paymentId
+                );
 
-        Long currentUserId =
-                authUtil.getCurrentUserId();
+
+        Long currentRequesterId =
+                authUtil
+                        .getCurrentUserId();
+
 
         if (
-                !isFinanceManager() &&
-                !payment.getRequesterId().equals(
-                        currentUserId
-                )
+                !payment
+                        .getRequesterId()
+                        .equals(
+                                currentRequesterId
+                        )
         ) {
+
             throw new AccessDeniedException(
-                    "You are not authorized to view this payment request history"
+                    "You are not authorized "
+                            + "to view this payment request history"
             );
         }
+
 
         return paymentStatusHistoryRepository
                 .findByPaymentIdOrderByChangedAtAsc(
                         paymentId
                 )
                 .stream()
-                .map(history ->
-                        new PaymentStatusHistoryResponse(
-                                history.getId(),
-                                history.getPaymentId(),
-                                history.getPreviousStatus(),
-                                history.getNewStatus(),
-                                history.getChangedBy(),
-                                history.getChangedAt(),
-                                history.getReason()
-                        )
+                .map(
+                        history ->
+                                new PaymentStatusHistoryResponse(
+                                        history.getId(),
+                                        history.getPaymentId(),
+                                        history.getPreviousStatus(),
+                                        history.getNewStatus(),
+                                        history.getChangedBy(),
+                                        history.getChangedAt(),
+                                        history.getReason()
+                                )
                 )
                 .toList();
     }
 
+
+    /*
+     * =========================================================
+     * PAYMENT ENTITY
+     * =========================================================
+     */
     public PaymentRequest getPaymentEntity(
             Long paymentId
     ) {
 
         return paymentRequestRepository
-                .findById(paymentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Payment request",
-                                String.valueOf(
-                                        paymentId
+                .findById(
+                        paymentId
+                )
+                .orElseThrow(
+                        () ->
+                                new ResourceNotFoundException(
+                                        "Payment request",
+                                        String.valueOf(
+                                                paymentId
+                                        )
                                 )
-                        )
                 );
     }
+
 
     /*
-     * Checks the authenticated Spring Security authorities.
-     *
-     * Spring Security stores hasRole("FINANCE_MANAGER")
-     * as authority ROLE_FINANCE_MANAGER.
+     * =========================================================
+     * STATUS HISTORY
+     * =========================================================
      */
-    private boolean isFinanceManager() {
-
-        Authentication authentication =
-                SecurityContextHolder
-                        .getContext()
-                        .getAuthentication();
-
-        if (
-                authentication == null ||
-                !authentication.isAuthenticated()
-        ) {
-            return false;
-        }
-
-        return authentication
-                .getAuthorities()
-                .stream()
-                .map(
-                        GrantedAuthority::getAuthority
-                )
-                .anyMatch(
-                        "ROLE_FINANCE_MANAGER"::equals
-                );
-    }
-
     private void saveStatusHistory(
             Long paymentId,
             PaymentStatus previousStatus,
@@ -539,31 +701,50 @@ public class PaymentRequestService {
         PaymentStatusHistory history =
                 new PaymentStatusHistory();
 
+
         history.setPaymentId(
                 paymentId
         );
+
 
         history.setPreviousStatus(
                 previousStatus
         );
 
+
         history.setNewStatus(
                 newStatus
         );
+
 
         history.setChangedBy(
                 changedBy
         );
 
+
         history.setReason(
                 reason
         );
 
-        paymentStatusHistoryRepository.save(
-                history
-        );
+
+        paymentStatusHistoryRepository
+                .save(
+                        history
+                );
     }
 
+
+    /*
+     * =========================================================
+     * RESPONSE
+     * =========================================================
+     *
+     * No API response contract change is required here.
+     *
+     * invoiceDueDate is an internal approval-control
+     * snapshot and therefore does not need to be added to
+     * PaymentRequestResponse for this feature.
+     */
     private PaymentRequestResponse mapToResponse(
             PaymentRequest payment
     ) {
